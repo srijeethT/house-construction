@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 const fixedCategories = [ "Cement", "Steel Rebars", "Bricks/Blocks", "Flooring Tiles", "Paint & Primers","Gravel & Sand", "Wiring & Cables", "Switches & Sockets","Wood","Plumbing"];
 
-export default function page() {
+export default function Page() {
   const [form, setForm] = useState({
     productCategory: fixedCategories[0], // Default to first category
     productName: "",
