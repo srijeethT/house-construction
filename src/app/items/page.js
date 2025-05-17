@@ -10,15 +10,26 @@ const materialFactors = {
   "Cement": { factor: 0.4, unit: "Bags" },
   "Flooring Tiles": { factor: 1, unit: "Sq ft" },
   "Steel Rebars": { factor: 5, unit: "Kg" },
-  "Paint & Primers":{ factor:0.15, unit: "liters" },
+  "Paint & Primers": { factor: 0.15, unit: "liters" },
   "Gravel & Sand": { factor: 1.25, unit: "Cubic ft" },
-  "Bricks/Blocks ": { factor: 10, unit: "Nos" },
-  "Wiring & Cables": { factor:1.5, unit: "meters" },
-  "Wood": { factor:0.08, unit: "Cubic ft" },
-  "Pluming": { factor:0.05, unit: "Points" },
-
+  "Bricks/Blocks": { factor: 10, unit: "Nos" },
+  "Wiring & Cables": { factor: 1.5, unit: "meters" },
+  "Wood": { factor: 0.08, unit: "Cubic ft" },
+  "Plumbing": { factor: 0.05, unit: "Points" },
 };
 
+// Price range thresholds for categorization
+const priceRanges = {
+  "Cement": { low: 350, high: 400 },
+  "Flooring Tiles": { low: 70, high: 99 },
+  "Steel Rebars": { low: 60, high: 90 },
+  "Paint & Primers": { low: 100, high: 220 },
+  "Gravel & Sand": { low: 15, high: 30 },
+  "Bricks/Blocks": { low: 8, high: 15 },
+  "Wiring & Cables": { low: 50, high: 100 },
+  "Wood": { low: 500, high: 1000 },
+  "Plumbing": { low: 150, high: 300 },
+};
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -28,10 +39,10 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [buildingData, setBuildingData] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState({});
-  const router=useRouter()
+  const [priceRangeFilter, setPriceRangeFilter] = useState('all');
+  const router = useRouter();
   
   useEffect(() => {
-    // Load building data from localStorage
     const savedData = localStorage.getItem('buildingData');
     if (savedData) {
       setBuildingData(JSON.parse(savedData));
@@ -56,10 +67,20 @@ export default function Dashboard() {
         const organized = products.reduce((acc, product) => {
           const category = product.productCategory || 'Uncategorized';
           if (!acc[category]) acc[category] = [];
+          
+          // Determine price range
+          let priceRange = 'mid';
+          const range = priceRanges[category];
+          if (range) {
+            if (product.price < range.low) priceRange = 'low';
+            else if (product.price > range.high) priceRange = 'high';
+          }
+          
           acc[category].push({
             ...product,
             id: product._id || `${category}-${Math.random().toString(36).substr(2, 9)}`,
-            ...materialFactors[category] || { factor: 1, unit: "Unit" }
+            ...materialFactors[category] || { factor: 1, unit: "Unit" },
+            priceRange
           });
           return acc;
         }, {});
@@ -93,7 +114,7 @@ export default function Dashboard() {
         
         if (category) {
           const product = productsByCategory[category].find(p => p.id === item.id);
-          const quantity = category === 'Flooring' 
+          const quantity = category === 'Flooring Tiles' 
             ? Math.ceil(totalBuildingArea * product.factor)
             : Math.ceil((groundFloorArea * product.factor) + (plotArea * product.factor * (floors - 1)));
           
@@ -125,7 +146,7 @@ export default function Dashboard() {
         const groundFloorArea = plotArea - parkingArea;
         const totalBuildingArea = groundFloorArea + (plotArea * (floors - 1));
         
-        quantity = category === 'Flooring' 
+        quantity = category === 'Flooring Tiles' 
           ? Math.ceil(totalBuildingArea * product.factor)
           : Math.ceil((groundFloorArea * product.factor) + (plotArea * product.factor * (floors - 1)));
       }
@@ -133,8 +154,6 @@ export default function Dashboard() {
       return [...filteredCart, { ...product, quantity }];
     });
 
-    
-    
     // Update selected products
     setSelectedProducts(prev => ({
       ...prev,
@@ -155,6 +174,17 @@ export default function Dashboard() {
       });
       return newSelected;
     });
+  };
+
+  // Filter products based on price range selection
+  const getFilteredProducts = (products) => {
+    if (priceRangeFilter === 'all') return products;
+    return products.filter(product => product.priceRange === priceRangeFilter);
+  };
+
+  const handleCheckout = () => {
+    localStorage.setItem('constructionCart', JSON.stringify(cart));
+    router.push('/details');
   };
 
   if (isLoading) {
@@ -181,26 +211,31 @@ export default function Dashboard() {
     );
   }
 
-  const handleCheckout = () => {
-    // Save cart to localStorage
-    localStorage.setItem('constructionCart', JSON.stringify(cart))
-    // Redirect to results page
-    router.push('/details')
-  }
-
   return (
     <div className="container mx-auto p-4 min-h-[83vh] text-white">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Marketplace Products</h1>
-        <div className="relative">
-          <button className="p-2 rounded-full bg-gray-800 hover:bg-gray-700">
-            <FiShoppingCart className="text-xl" />
-          </button>
-          {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              {cart.length}
-            </span>
-          )}
+        <div className="flex items-center gap-4">
+          <select
+            value={priceRangeFilter}
+            onChange={(e) => setPriceRangeFilter(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded px-3 py-1"
+          >
+            <option value="all">All Price Ranges</option>
+            <option value="low">Budget</option>
+            <option value="mid">Mid-Range</option>
+            <option value="high">Premium</option>
+          </select>
+          <div className="relative">
+            <button className="p-2 rounded-full bg-gray-800 hover:bg-gray-700">
+              <FiShoppingCart className="text-xl" />
+            </button>
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {cart.length}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -232,9 +267,14 @@ export default function Dashboard() {
           <div className="flex-1 grid gap-8">
             {Object.entries(productsByCategory).map(([category, products]) => (
               <div key={category}>
-                <h2 className="text-xl font-semibold mb-4 border-b pb-2">{category}</h2>
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                  <h2 className="text-xl font-semibold">{category}</h2>
+                  <span className="text-sm text-gray-400">
+                    Showing {getFilteredProducts(products).length} of {products.length} products
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products.map(product => {
+                  {getFilteredProducts(products).map(product => {
                     const inCart = cart.some(item => item.id === product.id);
                     const isSelected = selectedProducts[category]?.id === product.id;
                     
@@ -245,6 +285,15 @@ export default function Dashboard() {
                           isSelected ? 'border-blue-500' : 'border-gray-700 hover:border-gray-600'
                         }`}
                       >
+                        {/* Product badge for price range */}
+                        <div className={`absolute top-2 left-2 px-2 py-1 text-xs rounded-full z-10 ${
+                          product.priceRange === 'high' ? 'bg-purple-600' : 
+                          product.priceRange === 'mid' ? 'bg-blue-600' : 'bg-green-600'
+                        }`}>
+                          {product.priceRange === 'high' ? 'Premium' : 
+                           product.priceRange === 'mid' ? 'Mid-Range' : 'Budget'}
+                        </div>
+
                         {/* Product Image with Hover Overlay */}
                         <div className="relative overflow-hidden">
                           {product.profilepic && (
@@ -363,11 +412,11 @@ export default function Dashboard() {
                     <span>₹{cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)}</span>
                   </div>
                   <button 
-    onClick={handleCheckout}
-    className="w-full mt-4 py-2 bg-green-600 hover:bg-green-700 rounded"
-  >
-    Get Material Estimate
-  </button>
+                    onClick={handleCheckout}
+                    className="w-full mt-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+                  >
+                    Get Material Estimate
+                  </button>
                 </div>
               </>
             )}
@@ -386,7 +435,10 @@ export default function Dashboard() {
               </span>
             </div>
           
-            <button className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">
+            <button 
+              onClick={handleCheckout}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+            >
               Checkout
             </button>
           </div>
