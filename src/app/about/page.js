@@ -116,7 +116,7 @@ const AboutPage = () => {
         <section>
           <h2 className="text-2xl font-semibold text-gray-700 mb-4">Get In Touch</h2>
           <p className="text-gray-600 mb-4">
-            Have questions or suggestions? We'd love to hear from you!
+            Have questions or suggestions? We&apos;sd love to hear from you!
           </p>
           <div className=" flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
            
